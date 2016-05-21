@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Hello Analytics - A quickstart guide for JavaScript</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+   <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="HelloAnalyticsV2.css">
+</head>
+<body>
+
+<button id="auth-button">Authorize</button>
+
+<h1>Hello Analytics</h1>
+
+<textarea cols="80" rows="20" id="query-output"></textarea>
+<br>
+<button id="sendGoals" name="managementApi" onclick="insertGoal()" >Goals</button>
+<br>
+<form id="filterForm">
+  <p id="filterName">Filter Name<p>
+  <input id="filterInput"><br>
+  <div class="filterMenu">
+  Filter Type
+      <div class="dropdown">
+
+         <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true"> Dropdown </button>
+        <ul class="dropdown-menu" role="menu" aria-labelledby="menu1">
+          <li role="presentation"><a role="menuitem" tabindex="-1" href="#" id="exclude" value="EXCLUDE">EXCLUDE</li>
+          <li role="presentation"><a role="menuitem" tabindex="-1" href="#" id="include" value="INCLUDE">INCLUDE</li>
+          <li role="presentation"><a role="menuitem" tabindex="-1" href="#" id="search_replace" value="SEARCH_AND_REPLACE">SEARCH_AND_REPLACE</li>
+        </ul>
+      </div> <!-- End of dropdown menu -->
+  </div>
+  <br>
+  <span>Expression Value</span>
+  <br>
+  <input id="expressionValue"><br>
+  <button class="btn" id="sendData" name="managementApi" onclick="selectInsert()" >Insert filters</button>
+</form>
+
+<!-- Single button -->
+
+
+
+
+
+
+
+<script>
+ //filter section
+
+ //Get Filter Name
+
+
+ // Get Filter type
+
+
+  // Replace with your client ID from the developer console.
+  var CLIENT_ID = '937335440874-7p09q1opc571k08iqtpk4ku5ptutru6i.apps.googleusercontent.com';
+
+  // Set authorized scope.
+  var SCOPES = ['https://www.googleapis.com/auth/analytics.edit'];
+  //var SCOPES = ['https://www.googleapis.com/auth/analytics.edit'];
+
+
+  function authorize(event) {
+    // Handles the authorization flow.
+    // `immediate` should be false when invoked from the button click.
+    var useImmdiate = event ? false : true;
+    var authData = {
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      immediate: useImmdiate
+    };
+
+    gapi.auth.authorize(authData, function(response) {
+      var authButton = document.getElementById('auth-button');
+      if (response.error) {
+        authButton.hidden = false;
+      }
+      else {
+        authButton.hidden = true;
+        queryAccounts();
+       // insertFilter();
+        //insertGoal();
+      }
+    });
+  }
+
+
+function queryAccounts() {
+  // Load the Google Analytics client library.
+  gapi.client.load('analytics', 'v3').then(function() {
+
+    // Get a list of all Google Analytics accounts for this user
+    gapi.client.analytics.management.accounts.list().then(handleAccounts);
+  });
+}
+
+
+function handleAccounts(response) {
+  // Handles the response from the accounts list method.
+  if (response.result.items && response.result.items.length) {
+    // Get the first Google Analytics account.
+    var firstAccountId = response.result.items[0].id;
+    console.log(firstAccountId);
+  
+
+    // Query for properties.
+    queryProperties(firstAccountId);
+  } else {
+    console.log('No accounts found for this user.');
+  }
+}
+
+
+function queryProperties(accountId) {
+  // Get a list of all the properties for the account.
+  gapi.client.analytics.management.webproperties.list(
+      {'accountId': accountId})
+    .then(handleProperties)
+    .then(null, function(err) {
+      // Log any errors.
+      console.log(err);
+  });
+}
+
+
+function handleProperties(response) {
+  // Handles the response from the webproperties list method.
+  if (response.result.items && response.result.items.length) {
+
+    // Get the first Google Analytics account
+    var firstAccountId = response.result.items[0].accountId;
+
+    // Get the property ID
+    var firstPropertyId = response.result.items[1].id;
+
+    // Query for Views (Profiles).
+    queryProfiles(firstAccountId, firstPropertyId);
+  } else {
+    console.log('No properties found for this user.');
+  }
+}
+
+
+function queryProfiles(accountId, propertyId) {
+  // Get a list of all Views (Profiles) for the first property
+  // of the first Account.
+  gapi.client.analytics.management.profiles.list({
+      'accountId': accountId,
+      'webPropertyId': propertyId
+  })
+  .then(handleProfiles)
+  .then(null, function(err) {
+      // Log any errors.
+      console.log(err);
+  });
+}
+
+
+function handleProfiles(response) {
+  // Handles the response from the profiles list method.
+  if (response.result.items && response.result.items.length) {
+    // Get the first View (Profile) ID.
+    var firstProfileId = response.result.items[1].id;
+
+    // Query the Core Reporting API.
+    queryCoreReportingApi(firstProfileId);
+  } else {
+    console.log('No views (profiles) found for this user.');
+  }
+}
+
+
+function queryCoreReportingApi(profileId) {
+  // Query the Core Reporting API for the number sessions for
+  // the past seven days.
+  gapi.client.analytics.data.ga.get({
+    'ids': 'ga:' + profileId,
+    'start-date': '7daysAgo',
+    'end-date': 'today',
+    'metrics': 'ga:sessions'
+  })
+  .then(function(response) {
+    var formattedJson = JSON.stringify(response.result, null, 2);
+    document.getElementById('query-output').value = formattedJson;
+  })
+  .then(null, function(err) {
+      // Log any errors.
+      console.log(err);
+  });
+}
+//var multipleID = ["72324151","56068633"]
+
+  jQuery(".dropdown-menu li").click(function(filterType){
+
+
+  var listOption = jQuery(this).text();
+  console.log(listOption)
+  var filterType = jQuery("#dropdownMenu1").text(listOption);
+  console.log(filterType);
+
+});
+    
+
+function excludeFilter() {
+
+  var filterName = $("#filterInput").val();
+  // console.log("filter name is " + filterName);
+  // console.log("Filter type is " + filterType)
+  var filterType =jQuery("#dropdownMenu1").text()
+  var expressionVal = jQuery("#expressionValue").val();
+  // console.log("In insertFilter the type is "+ filterType)
+
+
+
+
+  var request = gapi.client.analytics.management.filters.insert(
+    {
+      'accountId': "56068633",
+      'resource': {
+        'name': filterName,
+        'type': filterType,
+        'excludeDetails': {
+          'field': 'GEO_IP_ADDRESS',
+          'expressionValue': expressionVal,
+          'matchType': 'BEGINS_WITH',
+          'caseSensitive': false
+        }
+     }
+    });
+
+    request.execute(function(response){ console.log("Hello API;")})
+
+    console.log("exclude filter executed");
+};
+
+function selectInsert(typeOfFilter){
+
+  var filterName = $("#filterInput").val();
+  console.log("filter name is " + filterName);
+  console.log("Filter type is " + filterType)
+  var filterType =jQuery("#dropdownMenu1").text()
+  console.log("In insertFilter the type is "+ filterType);
+
+  var typeOfFilter
+
+  if(filterType == "EXCLUDE"){
+
+    typeOfFilter = excludeFilter();
+
+    return typeOfFilter
+
+  }else {
+
+    typeOfFilter = includeFilter();
+    return typeOfFilter;
+  }
+
+  console.log("select filter executed");
+}
+
+
+function includeFilter (){
+
+  var filterName = $("#filterInput").val();
+  // console.log("filter name is " + filterName);
+  // console.log("Filter type is " + filterType)
+  var filterType =jQuery("#dropdownMenu1").text()
+  var expressionVal = jQuery("#expressionValue").val();
+  // console.log("In insertFilter the type is "+ filterType)
+
+
+
+
+  var request = gapi.client.analytics.management.filters.insert(
+    {
+      'accountId': "56068633",
+      'webPropertyId': 'UA-56068633-2',
+      'profileId': '106536610',
+      'resource': {
+        'name': filterName,
+        'type': filterType,
+        'includeDetails': {
+          'field': 'GEO_IP_ADDRESS',
+          'expressionValue': expressionValue,
+          'matchType': 'BEGINS_WITH',
+          'caseSensitive': false
+        }
+     }
+    });
+
+    request.execute(function(response){ console.log("Hello API;")})
+    console.log("include filter executed");
+
+}
+
+
+
+  // Add an event listener to the 'auth-button'.
+  document.getElementById('auth-button').addEventListener('click', authorize);
+</script>
+
+<script src="https://apis.google.com/js/client.js?onload=authorize"></script>
+
+
+</body>
+</html>
